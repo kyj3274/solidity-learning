@@ -2,32 +2,54 @@ import hre from "hardhat";
 import { expect } from "chai";
 import { MyToken } from "../typechain-types"; 
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-describe("mytoken deploy", () => {
+
+const mintingAmount = 100;
+const decimals = 18;
+describe("My Token", () => {
     let myTokenC: MyToken;
     let signers: HardhatEthersSigner[];
-    before("should deploy", async () => {
+    beforeEach("should deploy", async () => {
         signers = await hre.ethers.getSigners();
         myTokenC = await hre.ethers.deployContract("MyToken", [
             "MyToken",
             "MT",
-            18
+            decimals,
+            mintingAmount,
         ]);
     });
-    it("should return name", async () => {
-        expect(await myTokenC.name()).to.equal("MyToken");
-    });
-    it("should return symbol", async () => {
-        expect(await myTokenC.symbol()).to.equal("MT");
-    });
-    it("should return decimals", async () => {
-        expect(await myTokenC.decimals()).to.equal(18);
-    });
-    it("should return 0 totalSupply", async () => {
-        expect(await myTokenC.totalSupply()).to.equal(BigInt(1*10**18));
+    
+    describe("Basic state value check", () => {
+        it("should return name", async () => {
+            expect(await myTokenC.name()).to.equal("MyToken");
+        });
+        it("should return symbol", async () => {
+            expect(await myTokenC.symbol()).to.equal("MT");
+        });
+        it("should return decimals", async () => {
+            expect(await myTokenC.decimals()).to.equal(decimals);
+        });
+        it("should return 100 totalSupply", async () => {
+            expect(await myTokenC.totalSupply()).to.equal(BigInt(mintingAmount*10**decimals));
+        });
     });
     // 1MT = 1*10^18
-    it("should return 1MT balance for signer 0", async () => {
-        const signer0 = signers[0];
-        expect(await myTokenC.balanceOf(signers[0].address)).to.equal(BigInt(1*10**18));
+    describe("Mint", () => {
+        it("should return 1MT balance for signer 0", async () => {
+            const signer0 = signers[0];
+            expect(await myTokenC.balanceOf(signers[0].address)).to.equal(BigInt(mintingAmount*10**decimals));
+        });
+    });
+    describe("Transfer", () => {
+        it("should have 0.5MT balance for signer 1", async () => {
+            const signer1 = signers[1];
+            await myTokenC.transfer(hre.ethers.parseUnits("0.5", decimals), signer1.address);
+            expect(await myTokenC.balanceOf(signer1)).to.equal(hre.ethers.parseUnits("0.5", decimals));
+        });
+        it("should be reverted with insufficient balance error", async () => {
+            const signer1 = signers[1];
+            await expect(
+                myTokenC.transfer(hre.ethers.parseUnits((BigInt(mintingAmount + 1)).toString(), decimals), signer1.address)
+            ).to.be.revertedWith("insufficient balance");
+        });
     });
 });
