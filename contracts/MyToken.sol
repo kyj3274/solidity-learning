@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 contract MyToken {
     event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed spender, uint256 amount);
 
     string public name;
     string public symbol;
@@ -20,7 +21,8 @@ contract MyToken {
     }
     
     function approve(address spender, uint256 amount) external {
-        allowance[msg.sender] [spender] = amount;
+        allowance[msg.sender][spender] = amount;
+        emit Approval(spender, amount); 
     }
 
     function transferFrom(address from, address to, uint256 amount) external {
@@ -29,6 +31,7 @@ contract MyToken {
         allowance[from][spender] -= amount;
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
+        emit Transfer(from, to, amount);
     }
 
     function _mint(uint256 amount, address owner) internal {
