@@ -17,7 +17,7 @@ contract MyToken {
         name = _name;
         symbol = _symbol;
         decimals = _decimal;
-        _mint(_amount *10**uint256(decimals), msg.sender);
+        _mint(_amount * 10 ** uint256(decimals), msg.sender);
     }
     
     function approve(address spender, uint256 amount) external {
