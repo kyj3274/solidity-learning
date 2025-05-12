@@ -9,18 +9,33 @@ describe("TinyBank", () => {
     let myTokenC: MyToken;
     let tinyBankC: TinyBank;
     beforeEach(async () => {
-        signers = await hre.ethers.getSigners();
-        myTokenC = await hre.ethers.deployContract("MyToken", [
-            "MyToken",
-            "MT",
-            DECIMALS,
-            MINTING_AMOUNT,
-        ]);
-        tinyBankC = await hre.ethers.deployContract("TinyBank", [
-           await myTokenC.getAddress(),
-        ]);
-        await myTokenC.setManager(tinyBankC.getAddress());
-    });
+    signers = await hre.ethers.getSigners();
+    //생성자 변경한 것 반영 -> owner와 managers에 signer삽입
+    myTokenC = await hre.ethers.deployContract("MyToken", [
+        "MyToken",
+        "MT",
+        DECIMALS,
+        MINTING_AMOUNT,
+    ]);
+
+    const owner = signers[0].address;
+    const managers = [
+        signers[0].address, 
+        signers[1].address,
+        signers[2].address,
+        signers[3].address,
+        signers[4].address
+    ];
+
+    tinyBankC = await hre.ethers.deployContract("TinyBank", [
+        owner,
+        managers,
+        await myTokenC.getAddress()
+    ]);
+
+    await myTokenC.setManager(await tinyBankC.getAddress());
+});
+
 
     describe("Initialized state check", () => {
         it("should return totalStaked 0", async () => {
@@ -70,13 +85,42 @@ describe("TinyBank", () => {
             await tinyBankC.withdraw(stakingAmount);
             expect(await myTokenC.balanceOf(signer0.address)).equal(hre.ethers.parseUnits((BLOCKS + MINTING_AMOUNT + 1n).toString()));
         });
+        // it("Should revert when changing rewardPerBlock by hacker", async () => {
+        //     const hacker = signers[3];
+        //     const rewardToChange = hre.ethers.parseUnits("10000", DECIMALS);
+        //     await expect(
+        //         tinyBankC.connect(hacker).setRewardPerBlock(rewardToChange)
+        //     ).to.be.revertedWith("You are not authorized to manage this contract");
+        // })
+    });
 
-        it("Should revert when changing rewardPerBlock by hacker", async () => {
-            const hacker = signers[3];
-            const rewardToChange = hre.ethers.parseUnits("10000", DECIMALS);
+    describe("All Managers Confirm", () => {
+        it("Should rewardPerBlock update", async () => {
+            const confirmedReward = hre.ethers.parseUnits("1", DECIMALS);
+
+            for (let i = 0; i < 5; i++) {
+                await tinyBankC.connect(signers[i]).confirm();
+            }
+            await tinyBankC.setRewardPerBlock(confirmedReward);
+            expect(await tinyBankC.rewardPerBlock()).to.equal(confirmedReward);
+        });
+
+        it("Should non-manager allow to confirm", async () => {
+            const hacker = signers[5];
             await expect(
-                tinyBankC.connect(hacker).setRewardPerBlock(rewardToChange)
-            ).to.be.revertedWith("You are not authorized to manage this contract");
+                tinyBankC.connect(hacker).confirm()
+            ).to.be.revertedWith("You are not a manager");
+        })
+
+        it("Should all manager do not allow to confirm", async () => {
+            for (let i = 0; i < 4; i++) {
+                await tinyBankC.connect(signers[i]).confirm();
+            }
+            const rewardToChange = hre.ethers.parseUnits("10000", DECIMALS);
+
+            await expect(
+                tinyBankC.setRewardPerBlock(rewardToChange)
+            ).to.be.revertedWith("Not all confirmed yet");
         })
     });
 });
