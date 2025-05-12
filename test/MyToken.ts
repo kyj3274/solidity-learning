@@ -44,7 +44,7 @@ describe("My Token", () => {
             const mintingAgainAmount = hre.ethers.parseUnits("100", decimals);
             await expect(
                 myTokenC.connect(hacker).mint(mintingAgainAmount, hacker.address)
-            ).to.be.revertedWith("You are not authorized to manage this token");
+            ).to.be.revertedWith("You are not authorized to manage this contract");
         });
     });
     describe("Transfer", () => {
